@@ -75,13 +75,15 @@ export default function AuthClassicLayout({ children, image, title }: Props) {
 
   const renderContent = (
     <Stack
+      alignItems="center"
+      justifyContent={'center'}
       sx={{
         width: 1,
         mx: 'auto',
         maxWidth: 480,
         px: { xs: 2, md: 8 },
-        pt: { xs: 15, md: 20 },
-        pb: { xs: 15, md: 0 },
+        // pt: { xs: 15, md: 10 },
+        // pb: { xs: 15, md: 0 },
       }}
     >
       {children}

@@ -6,7 +6,7 @@ import axios, { endpoints } from 'src/utils/axios';
 
 import { AuthContext } from './auth-context';
 import { setSession, isValidToken } from './utils';
-import { AuthUserType, ActionMapType, AuthStateType } from '../../types';
+import { AuthUserType, ActionMapType, AuthStateType, LoginValues } from '../../types';
 
 // ----------------------------------------------------------------------
 /**
@@ -128,47 +128,24 @@ export function AuthProvider({ children }: Props) {
   }, [initialize]);
 
   // LOGIN
-  const login = useCallback(async (email: string, password: string) => {
-    const data = {
-      email,
-      password,
-    };
+  const login = useCallback(async (data: LoginValues, userType: string) => {
+    try {
+      const endpoint =
+        userType === 'user'
+          ? '/auth/login'
+          : userType === 'admin'
+            ? '/auth/login-admin'
+            : '/auth/login-superadmin';
 
-    const res = await axios.post(endpoints.auth.login, data);
+      const res = await axios.post(`http://localhost:5000/api${endpoint}`, data);
 
-    const { accessToken, user } = res.data;
+      const { token, user } = res.data;
+      const accessToken = token.split(' ')[1];
 
-    setSession(accessToken);
-
-    dispatch({
-      type: Types.LOGIN,
-      payload: {
-        user: {
-          ...user,
-          accessToken,
-        },
-      },
-    });
-  }, []);
-
-  // REGISTER
-  const register = useCallback(
-    async (email: string, password: string, firstName: string, lastName: string) => {
-      const data = {
-        email,
-        password,
-        firstName,
-        lastName,
-      };
-
-      const res = await axios.post(endpoints.auth.register, data);
-
-      const { accessToken, user } = res.data;
-
-      sessionStorage.setItem(STORAGE_KEY, accessToken);
+      setSession(accessToken);
 
       dispatch({
-        type: Types.REGISTER,
+        type: Types.LOGIN,
         payload: {
           user: {
             ...user,
@@ -176,11 +153,62 @@ export function AuthProvider({ children }: Props) {
           },
         },
       });
-    },
-    []
-  );
 
-  // LOGOUT
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Login failed',
+      };
+    }
+  }, []);
+
+  // const login = useCallback(async (email: string, password: string) => {
+  //   const data = { email, password };
+
+  //   const res = await axios.post(endpoints.auth.login, data);
+
+  //   const { accessToken, user } = res.data;
+
+  //   setSession(accessToken);
+
+  //   dispatch({
+  //     type: Types.LOGIN,
+  //     payload: {
+  //       user: {
+  //         ...user,
+  //         accessToken,
+  //       },
+  //     },
+  //   });
+  // }, []);
+
+  // REGISTER
+  const register = useCallback(async (data: any, userType: string) => {
+    try {
+      const endpoint =
+        userType === 'user'
+          ? '/auth/signup'
+          : userType === 'admin'
+            ? '/auth/signup-admin'
+            : '/auth/signup-superadmin';
+
+      const res = await axios.post(`http://localhost:5000/api${endpoint}`, data);
+
+      console.log('gg 11', res);
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Registration failed',
+      };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     setSession(null);
     dispatch({
@@ -209,5 +237,5 @@ export function AuthProvider({ children }: Props) {
     [login, logout, register, state.user, status]
   );
 
-  return <AuthContext.Provider value={memoizedValue}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={memoizedValue as any}>{children}</AuthContext.Provider>;
 }

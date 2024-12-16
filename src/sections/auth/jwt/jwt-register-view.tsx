@@ -1,6 +1,5 @@
 'use client';
 
-import * as Yup from 'yup';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -8,55 +7,28 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
-import IconButton from '@mui/material/IconButton';
+import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
-import InputAdornment from '@mui/material/InputAdornment';
+import { MenuItem, FormControl, InputLabel, Select, SelectChangeEvent } from '@mui/material';
 
+import { useRouter } from 'src/routes/hooks';
+import { useAuthContext } from 'src/auth/hooks';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { useBoolean } from 'src/hooks/use-boolean';
-
-import { useAuthContext } from 'src/auth/hooks';
-import { PATH_AFTER_LOGIN } from 'src/config-global';
-
-import Iconify from 'src/components/iconify';
 import FormProvider, { RHFTextField } from 'src/components/hook-form';
-
-// ----------------------------------------------------------------------
+import { REGISTER_VALUES, REGISTER_SCHEMA } from './constants';
 
 export default function JwtRegisterView() {
   const { register } = useAuthContext();
-
   const router = useRouter();
-
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const searchParams = useSearchParams();
-
-  const returnTo = searchParams.get('returnTo');
-
-  const password = useBoolean();
-
-  const RegisterSchema = Yup.object().shape({
-    firstName: Yup.string().required('First name required'),
-    lastName: Yup.string().required('Last name required'),
-    email: Yup.string().required('Email is required').email('Email must be a valid email address'),
-    password: Yup.string().required('Password is required'),
-  });
-
-  const defaultValues = {
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-  };
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [userType, setUserType] = useState<string>('user');
 
   const methods = useForm({
-    resolver: yupResolver(RegisterSchema),
-    defaultValues,
+    resolver: yupResolver(REGISTER_SCHEMA),
+    defaultValues: REGISTER_VALUES,
   });
 
   const {
@@ -65,29 +37,65 @@ export default function JwtRegisterView() {
     formState: { isSubmitting },
   } = methods;
 
+  const handleUserTypeChange = (event: SelectChangeEvent) => {
+    setUserType(event.target.value);
+  };
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await register?.(data.email, data.password, data.firstName, data.lastName);
+      const result = (await register(data, userType)) as any;
 
-      router.push(returnTo || PATH_AFTER_LOGIN);
+      if (result.success) {
+        router.push('/auth/jwt/login');
+      } else {
+        setErrorMsg(result.error);
+        reset();
+      }
     } catch (error) {
       console.error(error);
       reset();
-      setErrorMsg(typeof error === 'string' ? error : error.message);
+      setErrorMsg(typeof error === 'string' ? error : 'An unexpected error occurred');
     }
   });
 
   const renderHead = (
-    <Stack spacing={2} sx={{ mb: 5, position: 'relative' }}>
+    <Stack spacing={1} sx={{ mb: 5, textAlign: 'center' }}>
       <Typography variant="h4">Get started absolutely free</Typography>
+      <Typography variant="body2">Already have an account?</Typography>
+      <Link href={paths.auth.jwt.login} component={RouterLink} variant="subtitle2">
+        Sign in
+      </Link>
+    </Stack>
+  );
 
-      <Stack direction="row" spacing={0.5}>
-        <Typography variant="body2"> Already have an account? </Typography>
+  const renderUserTypeSelect = (
+    <FormControl fullWidth sx={{ mb: 2 }}>
+      <InputLabel>User Type</InputLabel>
+      <Select value={userType} label="User Type" onChange={handleUserTypeChange}>
+        <MenuItem value="user">User</MenuItem>
+        <MenuItem value="admin">Admin</MenuItem>
+        <MenuItem value="superadmin">Super Admin</MenuItem>
+      </Select>
+    </FormControl>
+  );
 
-        <Link href={paths.auth.jwt.login} component={RouterLink} variant="subtitle2">
-          Sign in
-        </Link>
-      </Stack>
+  const renderForm = (
+    <Stack spacing={2.5}>
+      <RHFTextField name="name" label="Name" />
+      <RHFTextField name="username" label="Username" />
+      <RHFTextField name="email" label="Email address" />
+      <RHFTextField name="password" label="Password" type="password" />
+
+      <LoadingButton
+        fullWidth
+        color="inherit"
+        size="large"
+        type="submit"
+        variant="contained"
+        loading={isSubmitting}
+      >
+        Create account
+      </LoadingButton>
     </Stack>
   );
 
@@ -113,45 +121,8 @@ export default function JwtRegisterView() {
     </Typography>
   );
 
-  const renderForm = (
-    <Stack spacing={2.5}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-        <RHFTextField name="firstName" label="First name" />
-        <RHFTextField name="lastName" label="Last name" />
-      </Stack>
-
-      <RHFTextField name="email" label="Email address" />
-
-      <RHFTextField
-        name="password"
-        label="Password"
-        type={password.value ? 'text' : 'password'}
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <IconButton onClick={password.onToggle} edge="end">
-                <Iconify icon={password.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
-              </IconButton>
-            </InputAdornment>
-          ),
-        }}
-      />
-
-      <LoadingButton
-        fullWidth
-        color="inherit"
-        size="large"
-        type="submit"
-        variant="contained"
-        loading={isSubmitting}
-      >
-        Create account
-      </LoadingButton>
-    </Stack>
-  );
-
   return (
-    <>
+    <Container maxWidth="sm">
       {renderHead}
 
       {!!errorMsg && (
@@ -161,10 +132,11 @@ export default function JwtRegisterView() {
       )}
 
       <FormProvider methods={methods} onSubmit={onSubmit}>
+        {renderUserTypeSelect}
         {renderForm}
       </FormProvider>
 
       {renderTerms}
-    </>
+    </Container>
   );
 }

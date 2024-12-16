@@ -7,7 +7,7 @@ node_modules
 
 # testing
 coverage
-
+src.zip
 # production
 .next
 .swc
